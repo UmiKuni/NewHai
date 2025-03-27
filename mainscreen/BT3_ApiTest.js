@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { NavigationContainer } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
+import { MaterialIcons } from '@expo/vector-icons';
 import {
   StyleSheet,
   Text,
@@ -95,6 +96,12 @@ function HomeScreen({ navigation }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [isDialogVisible, setIsDialogVisible] = useState(false);
+  const [newUserName, setNewUserName] = useState("");
+  const [newUserAge, setNewUserAge] = useState("");
+  const [newUserSalary, setNewUserSalary] = useState("");
+  const [newUserProfileImage, setNewUserProfileImage] = useState("");
+
 
   useEffect(() => {
     const fetchUsers = async () => {
@@ -112,6 +119,60 @@ function HomeScreen({ navigation }) {
     fetchUsers();
   }, []);
 
+  const deleteUser = async (userId) => {
+    try {
+      const response = await fetch(`http://blackntt.net:88/api/v1/delete/${userId}`, {
+        method: 'DELETE',
+      });
+      if (response.ok) {
+        setUsers(users.filter(user => user.id !== userId));
+        alert("User deleted successfully.");
+      } else {
+        alert("Failed to delete user.");
+      }
+    } catch (error) {
+      console.error("Delete user error:", error);
+      alert("An error occurred while deleting the user.");
+    }
+  };
+
+  const addUser = async () => {
+    if (!newUserName || !newUserAge || !newUserSalary || !newUserProfileImage) {
+      alert("Please fill all fields.");
+      return;
+    }
+    try {
+      const response = await fetch('http://blackntt.net:88/api/v1/create', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          employee_name: newUserName,
+          employee_age: newUserAge,
+          employee_salary: newUserSalary,
+          profile_image: newUserProfileImage,
+        }),
+      });
+
+      if (response.ok) {
+        const newUser = await response.json();
+        setUsers([...users, newUser]);
+        alert("User added successfully.");
+        setIsDialogVisible(false);
+        setNewUserName("");
+        setNewUserAge("");
+        setNewUserSalary("");
+        setNewUserProfileImage("");
+      } else {
+        alert("Failed to add user.");
+      }
+    } catch (error) {
+      console.error("Add user error:", error);
+      alert("An error occurred while adding the user.");
+    }
+  };
+
   return (
     <View style={styles.container}>
       <Text style={styles.title}>Users</Text>
@@ -124,11 +185,60 @@ function HomeScreen({ navigation }) {
           data={users}
           keyExtractor={(item) => item.id.toString()}
           renderItem={({ item }) => (
-            <TouchableOpacity style={styles.listItem} onPress={() => navigation.navigate('detail', { userId: item.id })}>
-              <Text style={styles.item}>{item.employee_name}</Text>
-            </TouchableOpacity>
+            <View style={styles.listItem}>
+              <TouchableOpacity onPress={() => navigation.navigate('detail', { userId: item.id })}>
+                <Text style={styles.item}>{item.employee_name}</Text>
+              </TouchableOpacity>
+              <TouchableOpacity onPress={() => deleteUser(item.id)} style={styles.deleteButton}>
+                <MaterialIcons name="delete" size={24} color="red" />
+              </TouchableOpacity>
+            </View>
           )}
         />
+      )}
+      <TouchableOpacity style={styles.addButton} onPress={() => setIsDialogVisible(true)}>
+        <Text style={styles.addButtonText}>Add User</Text>
+      </TouchableOpacity>
+
+      {isDialogVisible && (
+        <View style={styles.dialog}>
+          <Text style={styles.dialogTitle}>Add New User</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Name"
+            value={newUserName}
+            onChangeText={setNewUserName}
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Age"
+            value={newUserAge}
+            onChangeText={setNewUserAge}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Salary"
+            value={newUserSalary}
+            onChangeText={setNewUserSalary}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="ProfileImage"
+            value={newUserProfileImage}
+            onChangeText={setNewUserProfileImage}
+            keyboardType="numeric"
+          />
+          <View style={styles.dialogButtons}>
+            <TouchableOpacity style={styles.dialogButton} onPress={addUser}>
+              <Text style={styles.dialogButtonText}>Add</Text>
+            </TouchableOpacity>
+            <TouchableOpacity style={styles.dialogButton} onPress={() => setIsDialogVisible(false)}>
+              <Text style={styles.dialogButtonText}>Cancel</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
       )}
     </View>
   );
@@ -232,6 +342,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   listItem: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 10,
     borderBottomWidth: 1,
     borderBottomColor: "#ccc",
@@ -239,12 +352,62 @@ const styles = StyleSheet.create({
   },
   item: {
     fontSize: 18,
+    flex: 1,
+  },
+  deleteButton: {
+    marginLeft: 10,
   },
   profileImage: {
     width: 100,
     height: 100,
     borderRadius: 50,
     marginBottom: 10,
+  },
+  addButton: {
+    width: "100%",
+    backgroundColor: "#000",
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 5,
+    marginTop: 10,
+  },
+  addButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    textAlign: "center",
+  },
+  dialog: {
+    position: "absolute",
+    top: 100,
+    left: 20,
+    right: 20,
+    bottom: 20,
+    backgroundColor: "rgba(193, 236, 159, 0.9)",
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  dialogTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 20,
+  },
+  dialogButtons: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    width: "100%",
+    marginTop: 20,
+  },
+  dialogButton: {
+    width: "45%",
+    backgroundColor: "#000",
+    paddingVertical: 10,
+    borderRadius: 5,
+  },
+  dialogButtonText: {
+    color: "#FFF",
+    fontSize: 16,
+    textAlign: "center",
   },
 });
 
